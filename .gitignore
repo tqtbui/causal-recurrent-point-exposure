@@ -1,0 +1,20 @@
+# RStudio project files
+.Rproj.user/
+*.Rproj
+
+# R package build files
+.Rbuildignore
+.Rcheck/
+
+# Temporary files
+*.tmp
+
+# R history files
+*.Rhistory
+
+# R workspace data files
+*.RData
+
+# PNG image files
+*.png
+"*.RData" 
