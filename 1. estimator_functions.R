@@ -644,9 +644,11 @@ DSestimators <- function(dat, t_fits = 2,
   u_grid <- seq(0, tau, by = 0.01)
   
   #interpolate N_E
-  ts <- seq(0, 6, by = 0.5)
-  N_E <- dat[,paste0("NE_",ts[-1])]
+  ts <- colnames(dat)[contains("NE_", vars = colnames(dat))]
+  ts <- as.numeric(substr(ts, 4, nchar(ts)))
+  N_E <- dat[,paste0("NE_",ts)]
   N_E <- cbind(0, N_E)
+  ts <- union(c(0), ts)
   dN_E <- matrix(0, nrow = nsamples, ncol = length(u_grid))
   for (t in 1:(length(ts)-1)) {
     for (i in 1:nsamples) {

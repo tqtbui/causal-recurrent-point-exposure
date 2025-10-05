@@ -1,4 +1,67 @@
 #################################
+#Calculating counterfactuals
+#################################
+
+# calculating counterfactuals
+
+source("0. general functions.R")
+t_fits <- seq(0.5, 6, by = 0.5)
+tau <- 12
+
+d.zCoef <- c(-2, -0.5, 0.1, 0.1, -0.5, -0.3, 0.1) 
+e.zCoef <- c(1, -0.5, 0.1, 0.1, -0.5, -0.1, -0.5)
+
+p.zCoef1 <- c(-0.5, 0.1, 0.1, 0.5)
+p.zCoef2 <- c(-0.5, 0, 0, 0.5)
+
+c.zCoef1 <- c(-2, 0.5, 0, 0, 0)
+c.zCoef2 <- c(-3, 0, 0.1, 0.1, 0.5)
+
+nsim <- 100000
+a1_dat <- matrix(0, nrow = nsim, 
+                 ncol = 8 + length(t_fits), 
+                 dimnames = list(1:nsim, 
+                                 c("c", "d", "x", "delta", 
+                                   "a", "l1", "l2", "l3", paste0("NE_", t_fits))))
+a0_dat <- matrix(0, nrow = nsim, 
+                 ncol = 8 + length(t_fits), 
+                 dimnames = list(1:nsim, 
+                                 c("c", "d", "x", "delta", 
+                                   "a", "l1", "l2", "l3", paste0("NE_", t_fits))))
+
+for (j in 1:nsim) {
+  tmp <- gen_instance(a = 1, counterfactual = TRUE, end = tau, 
+                      d.zCoef = d.zCoef, c.zCoef = c.zCoef1, 
+                      e.zCoef = e.zCoef, p.zCoef = p.zCoef1)
+  a1_dat[j,] <- c(tmp$c, tmp$d, tmp$x, tmp$delta, 
+                  tmp$a, tmp$l1, tmp$l2, tmp$l3, 
+                  n_func(t = t_fits, data = tmp$e))
+  tmp <- gen_instance(a = 0, counterfactual = TRUE, end = tau, 
+                      d.zCoef = d.zCoef, c.zCoef = c.zCoef1, 
+                      e.zCoef = e.zCoef, p.zCoef = p.zCoef1)
+  a0_dat[j,] <- c(tmp$c, tmp$d, tmp$x, tmp$delta, 
+                  tmp$a, tmp$l1, tmp$l2, tmp$l3, 
+                  n_func(t = t_fits, data = tmp$e))
+}
+
+mu_1 <- colMeans(a1_dat[,9:ncol(a1_dat)])
+mu_0 <- colMeans(a0_dat[,9:ncol(a0_dat)])
+mu_1
+mu_0
+
+eta_1 <- sapply(1:length(t_fits), function(i) {
+  mean(a1_dat[,"d"] > t_fits[i])
+})
+eta_0 <- sapply(1:length(t_fits), function(i) {
+  mean(a0_dat[,"d"] > t_fits[i])
+})
+eta_1
+eta_0
+
+# load("simulation_data.RData")
+save(mu_1, mu_0, eta_1, eta_0, file = "simulation_data.RData")
+
+#################################
 #Summarize results from the simulations into dataframes
 #################################
 
@@ -55,6 +118,20 @@ result2$scenario <- 2
 result3$scenario <- 3
 result <- rbind.data.frame(result1, result2, result3)
 
+save(result, file = "results.RData")
+
+#################################
+#Plots
+#################################
+
+#calculate bias, variance ratio and coverage
+load("results.RData")
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggpubr)
+
+# add true values of mu_1, mu_0, eta_1, eta_0 to the data frame
 library(dplyr)
 load("simulation_data.RData")
 res.df <- result[-c(1:nrow(result)),,drop=FALSE]
@@ -69,19 +146,6 @@ for (i in 1:6) {
     ))
   res.df <- rbind.data.frame(res.df, tmp)
 }
-
-save(res.df, file = "results.RData")
-
-#################################
-#Plots
-#################################
-
-#calculate bias, variance ratio and coverage
-load("results.RData")
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(ggpubr)
 
 # select the columns
 res.df <- res.df %>% 
