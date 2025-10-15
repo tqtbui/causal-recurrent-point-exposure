@@ -556,6 +556,64 @@ BBestimators <- function(dat, t_fits = 2, kfolds = 5, tau = 12,
   return(out)
 }
 
+#plot the BB estimator
+plotBB <- function(obj, isotonize = TRUE, 
+                   transf = TRUE, eps = 1e-06) {
+  
+  #adding time=0
+  obj <- rbind(obj[1:4,], obj)
+  obj
+  obj[1:4,"time"] <- 0
+  obj[1:4,"est"] <- c(0,0,1,1)
+  obj[1:4,"sd"] <- 0
+  obj[1:4,"estimand"] <- c("mu_1", "mu_0", "eta_1", "eta_0")
+  
+  #isotonic regression
+  if (isotonize) {
+    #only need isotonize the ub and lb if we do uniform confidence bands, but here we have pointwise CIs
+    obj$est[obj$estimand == "mu_1"] <- isoreg(obj$time[obj$estimand == "mu_1"], obj$est[obj$estimand == "mu_1"])$yf
+    obj$est[obj$estimand == "mu_0"] <- isoreg(obj$time[obj$estimand == "mu_0"], obj$est[obj$estimand == "mu_0"])$yf
+    
+    obj$est[obj$estimand == "eta_1"] <- 1-isoreg(obj$time[obj$estimand == "eta_1"], 1-obj$est[obj$estimand == "eta_1"])$yf
+    obj$est[obj$estimand == "eta_0"] <- 1-isoreg(obj$time[obj$estimand == "eta_0"], 1-obj$est[obj$estimand == "eta_0"])$yf
+  }
+  
+  #transform confidence intervals
+  if (transf) {
+    obj.1 <- obj %>%
+      filter(estimand %in% c("mu_1", "mu_0")) %>%
+      mutate(estp = pmax(est, eps),
+             g_mu = log(estp),
+             g_mu_sd = sqrt(((1/estp) * sd)^2),
+             lb = exp(g_mu - 1.96*g_mu_sd),
+             ub = exp(g_mu + 1.96*g_mu_sd),
+             gest = exp(g_mu))
+    obj.2 <- obj %>%
+      filter(estimand %in% c("eta_1", "eta_0")) %>%
+      mutate(estp = pmax(est, eps),
+             estp = pmin(estp, 1-eps),
+             g_mu = log(-log(estp)),
+             g_mu_sd = sqrt(((1/(estp*log(estp))) * sd)^2),
+             lb = exp(-exp(g_mu + 1.96*g_mu_sd)),
+             ub = exp(-exp(g_mu - 1.96*g_mu_sd)),
+             gest = exp(-exp(g_mu)))
+    obj <- rbind.data.frame(obj.1, obj.2)
+  } else {
+    obj <- obj %>%
+      mutate(lb = est - 1.96*sd, 
+             ub = est + 1.96*sd)
+  }
+  
+  print(obj %>%
+    ggplot(aes(x = time, y = est)) +
+    geom_line() +
+    geom_line(aes(x = time, y = lb), linetype = "dashed") +
+    geom_line(aes(x = time, y = ub), linetype = "dashed") + 
+    facet_wrap(vars(estimand), scales = "free_y"))
+  
+  return(obj)
+}
+
 #################################
 #Functions to calculate comparative estimators
 #################################
