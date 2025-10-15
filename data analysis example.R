@@ -58,7 +58,7 @@ dat_ben <- dat_ben[!((dat_ben[,"x"] == 0) & (dat_ben[,"delta"] == 1)),]
 
 # use our method to do analysis
 set.seed(123456)
-res <- BBestimators(dat_ben, t_fits = 1:60, tau = 64, kfolds = 5, 
+fit <- BBestimators(dat_ben, t_fits = 1:60, tau = 64, kfolds = 5, 
                     verbose = TRUE, 
                     pi.library = c("SL.glm"), 
                     event.library = c("survSL.km", "survSL.coxph"), 
@@ -67,58 +67,7 @@ res <- BBestimators(dat_ben, t_fits = 1:60, tau = 64, kfolds = 5,
                     d.library = c("SL.glm"), 
                     covnames = c("l1", "l2"))
 
-#-----------------------------
-#Visualization
-#-----------------------------
-
 # visualizing the results
 library(dplyr)
 library(ggplot2)
-
-#adding time=0
-obj <- res %>%
-  mutate(lb = est - 1.96*sd, 
-         ub = est + 1.96*sd)
-
-# #transform confidence intervals
-# eps <- 1e-09
-# obj.1 <- obj %>%
-#   filter(estimand %in% c("mu_1", "mu_0")) %>%
-#   mutate(estp = pmax(est, eps),
-#          g_mu = log(estp),
-#          g_mu_sd = sqrt(((1/estp) * sd)^2),
-#          lb = exp(g_mu - 1.96*g_mu_sd),
-#          ub = exp(g_mu + 1.96*g_mu_sd), 
-#          gest = exp(g_mu))
-# obj.2 <- obj %>%
-#   filter(estimand %in% c("eta_1", "eta_0")) %>%
-#   mutate(estp = pmax(est, eps),
-#          estp = pmin(estp, 1-eps),
-#          g_mu = log(-log(estp)),
-#          g_mu_sd = sqrt(((1/(estp*log(estp))) * sd)^2),
-#          lb = exp(-exp(g_mu + 1.96*g_mu_sd)),
-#          ub = exp(-exp(g_mu - 1.96*g_mu_sd)), 
-#          gest = exp(-exp(g_mu)))
-# obj <- rbind.data.frame(obj.1, obj.2)
-
-#adding time=0
-obj <- rbind(obj[1:4,], obj)
-obj
-obj[1:4,"time"] <- 0
-obj[1:4,"est"] <- c(0,0,1,1)
-obj[1:4,"sd"] <- 0
-obj[1:4,"lb"] <- c(0,0,1,1)
-obj[1:4,"ub"] <- c(0,0,1,1)
-
-View(obj)
-
-#plot
-png(filename = paste0("plot_bladder_result.png"), 
-    width = 900, height = 500)
-obj %>%
-  ggplot(aes(x = time, y = est)) +
-  geom_line() +
-  geom_line(aes(x = time, y = lb), linetype = "dashed") +
-  geom_line(aes(x = time, y = ub), linetype = "dashed") + 
-  facet_wrap(vars(estimand), scales = "free_y")
-dev.off()
+res <- plotBB(fit)

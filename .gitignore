@@ -8,6 +8,7 @@
 
 # Temporary files
 *.tmp
+"checks.R" 
 
 # R history files
 *.Rhistory
@@ -17,4 +18,3 @@
 
 # PNG image files
 *.png
-"*.RData" 
