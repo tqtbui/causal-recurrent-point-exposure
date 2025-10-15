@@ -8,7 +8,7 @@
 
 # Temporary files
 *.tmp
-"checks.R" 
+checks.R
 
 # R history files
 *.Rhistory
