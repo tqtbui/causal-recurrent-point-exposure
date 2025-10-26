@@ -533,6 +533,27 @@ outputs <- function(obj) {
 # Baer estimation function
 #-------------------
 
+#' Function to calculate estimators from Baer (2025) paper
+#' @param dat a dataframe with a specific structure: each row present one individuals, the columns contain 
+#' (i) a column named "delta" that indicate whether the individual is dead (1) or censored (0) 
+#' (ii) a column named "a" that indicate whether the individual is treated
+#' (iii) columns that contain individuals' covariates
+#' (iv) columns with names structured as "NE_"+t that record the number of event at time t
+#' @param t_fits times at which counterfactual events and survival probabilities are to be estimated
+#' @param kfolds number of folds for cross-fitting
+#' @param tau the end of the observation period (i.e. administrative censoring)
+#' @param incr the spacing of the time grids to be used
+#' @param cutoff the cutoff threshold for probabilities, if positivity control is required
+#' @param eps the epsilon value
+#' @param pi.library the SuperLearner libraries to fit propensity score
+#' @param event.library the survSuperLearner libraries to fit terminal event survival probabilities. Note that according to the survSuperLearner package, at least two libraries need to be specified
+#' @param cens.library the survSuperLearner libraries to fit censoring survival probabilities. Note that according to the survSuperLearner package, at least two libraries need to be specified
+#' @param c.library the SuperLearner libraries to fit c(u,t;a,l) = E[N_E(t)/K(X-;A,L) | Delta = 1, X > u, A = a, L = l]
+#' @param d.library the SuperLearner libraries to fit d(u;a,l) = E[ Delta | X > u, A = a, L = l]
+#' @param covnames the column name of the covariates
+#' @param verbose whether the print the fitting progress
+#' @return a dataframe that contains the estimates and estimated standard deviations of the number of events and survival probabilities at t_fits
+#' @export
 BBestimators <- function(dat, t_fits = 2, kfolds = 5, 
                          tau = 12, incr = 0.01,
                          cutoff = 0, eps = 1e-06, 
@@ -560,7 +581,14 @@ BBestimators <- function(dat, t_fits = 2, kfolds = 5,
   return(out)
 }
 
-#plot the BB estimator
+
+#' Function to plot the results from function BBestimators
+#' @param obj an object returned from a fit of the BBestimators() function
+#' @param isotonize whether to make the estimates monotone in time (increasing for number of events and decreasing for survival probabilities)
+#' @param transf whether to transform the estimates when calculating point-wise confidence intervals (log transform for number of events and complement log-log transform for survival probabilities)
+#' @param eps the epsilon value
+#' @return a dataframe that contains the estimates, estimated standard deviations and confidence intervals of the number of events and survival probabilities. A plot visualizing these results is also printed
+#' @export
 plotBB <- function(obj, isotonize = TRUE, 
                    transf = TRUE, eps = 1e-06) {
   
@@ -626,6 +654,24 @@ plotBB <- function(obj, isotonize = TRUE,
 #Westling for eta
 #-------------------
 
+#' Function to calculate estimators using the code from Westling et al (2023)
+#' @param dat a dataframe with a specific structure: each row present one individuals, the columns contain 
+#' (i) a column named "delta" that indicate whether the individual is dead (1) or censored (0) 
+#' (ii) a column named "a" that indicate whether the individual is treated
+#' (iii) columns that contain individuals' covariates
+#' (iv) columns with names structured as "NE_"+t that record the number of event at time t
+#' @param t_fits times at which counterfactual events and survival probabilities are to be estimated
+#' @param kfolds number of folds for cross-fitting
+#' @param tau the end of the observation period (i.e. administrative censoring)
+#' @param incr the spacing of the time grids to be used
+#' @param cutoff the cutoff threshold for probabilities, if positivity control is required
+#' @param pi.library the SuperLearner libraries to fit propensity score
+#' @param event.library the survSuperLearner libraries to fit terminal event survival probabilities. Note that according to the survSuperLearner package, at least two libraries need to be specified
+#' @param cens.library the survSuperLearner libraries to fit censoring survival probabilities. Note that according to the survSuperLearner package, at least two libraries need to be specified
+#' @param covnames the column name of the covariates
+#' @param verbose whether the print the fitting progress
+#' @return a dataframe that contains the estimates and estimated standard deviations of the number of events and survival probabilities at t_fits
+#' @export
 TWestimators <- function(dat, t_fits = 2, kfolds = 5, incr = 0.01,
                          verbose = TRUE, cutoff = 0, tau = 12, 
                          pi.library = c("SL.glm", "SL.gam", "SL.lgb"), 
@@ -684,10 +730,26 @@ TWestimators <- function(dat, t_fits = 2, kfolds = 5, incr = 0.01,
 #Schaubel & Zhang for mu
 #-------------------
 
+#' Function to calculate estimators proposed in Schaubel and Zhang (2010)
+#' @param dat a dataframe with a specific structure: each row present one individuals, the columns contain 
+#' (i) a column named "delta" that indicate whether the individual is dead (1) or censored (0) 
+#' (ii) a column named "a" that indicate whether the individual is treated
+#' (iii) columns that contain individuals' covariates
+#' (iv) columns with names structured as "NE_"+t that record the number of event at time t
+#' @param t_fits times at which counterfactual events and survival probabilities are to be estimated
+#' @param tau the end of the observation period (i.e. administrative censoring)
+#' @param incr the spacing of the time grids to be used
+#' @param cutoff the cutoff threshold for probabilities, if positivity control is required
+#' @param covnames the column name of the covariates
+#' @return a dataframe that contains the estimates and estimated standard deviations of the number of events and survival probabilities at t_fits
+#' @export
 DSestimators <- function(dat, t_fits = 2, 
                          cutoff = 0, tau = 12, incr = 0.01,
-                         pi.library = c("SL.glm"), 
                          covnames = c("l1", "l2", "l3")) {
+  
+  #libraries
+  pi.library <- c("SL.glm")
+  dat <- as.matrix(dat)
   
   # extract information from the data
   delta <- dat[,"delta"] # death indicator
@@ -835,15 +897,30 @@ DSestimators <- function(dat, t_fits = 2,
 #Functions to calculate IPW estimators
 #-------------------
 
+#' Function to calculate estimators from Baer (2025) paper
+#' @param dat a dataframe with a specific structure: each row present one individuals, the columns contain 
+#' (i) a column named "delta" that indicate whether the individual is dead (1) or censored (0) 
+#' (ii) a column named "a" that indicate whether the individual is treated
+#' (iii) columns that contain individuals' covariates
+#' (iv) columns with names structured as "NE_"+t that record the number of event at time t
+#' @param t_fits times at which counterfactual events and survival probabilities are to be estimated
+#' @param tau the end of the observation period (i.e. administrative censoring)
+#' @param incr the spacing of the time grids to be used
+#' @param cutoff the cutoff threshold for probabilities, if positivity control is required
+#' @param covnames the column name of the covariates used to calculate the propensity score
+#' @param covnames.surv the column name of the covariates used to calculate the terminal event and censoring probabilities 
+#' @return a dataframe that contains the estimates and estimated standard deviations of the number of events and survival probabilities at t_fits
+#' @export
 IPWestimators <- function(dat, t_fits = 2,
                           cutoff = 0, tau = 12, incr = 0.01,
-                          pi.library = c("SL.glm"),
-                          event.library = c("survSL.coxph", "survSL.coxph"),
-                          cens.library = c("survSL.coxph", "survSL.coxph"),
                           covnames = c("l1", "l2", "l3"), 
-                          covnames.surv = c("l1", "l2", "l3"),
-                          p.zCoef = c(-0.5, 0.1, 0.2, 0.3),
-                          c.zCoef = c(-2, 0.3, 0, 0, 0)) {
+                          covnames.surv = covnames) {
+  
+  #libraries
+  dat <- as.matrix(dat)
+  pi.library <- c("SL.glm")
+  event.library <- c("survSL.coxph", "survSL.coxph")
+  cens.library <- c("survSL.coxph", "survSL.coxph")
   
   # extract information from the data
   delta <- dat[,"delta"] # death indicator
@@ -1083,7 +1160,15 @@ IPWestimators <- function(dat, t_fits = 2,
 #Functions to transform a dataset
 #################################
 
-#transform recurrent event dataset from survival package to be compatible with estimating functions in this file
+#' Function to transform recurrent event dataset from survival package to be compatible with estimating functions in this file
+#' @param dat a dataframe with structure similar to datasets in the survival package
+#' @param t_fits times at which counterfactual events and survival probabilities are to be estimated
+#' @param covnames the column names of the time-independent individual covariates 
+#' @param event.col the name of the column that records the number of recurrent events
+#' @param treat.col the name of the column that records the treatment assignment
+#' @param treat.name the names of the treatment that is considered treated (A = 1)
+#' @return a dataframe that can be used with the estimators defined in this file
+#' @export
 dat_transf <- function(dat, t_fits, 
                        covnames, event.col,
                        treat.col, treat.name) {

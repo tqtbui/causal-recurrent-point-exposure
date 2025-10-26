@@ -37,6 +37,15 @@ fit <- BBestimators(dat_ben, t_fits = 1:60, tau = 64, kfolds = 5,
                     d.library = c("SL.glm"), 
                     covnames = c("number", "size"))
 
+# fit <- DSestimators(dat = dat_ben, t_fits = 1:60, tau = 64, 
+#                     covnames = c("number", "size"))
+# fit <- IPWestimators(dat = dat_ben, t_fits = 1:60, tau = 64, 
+#                      covnames = c("number", "size"))
+# fit <- TWestimators(dat = dat_ben, t_fits = 1:60, tau = 64, 
+#                     covnames = c("number", "size"), 
+#                     event.library = c("survSL.km", "survSL.coxph"), 
+#                     cens.library = c("survSL.km", "survSL.coxph"))
+
 # visualizing the results
 library(dplyr)
 library(ggplot2)
