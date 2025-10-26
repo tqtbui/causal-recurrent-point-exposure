@@ -533,23 +533,27 @@ outputs <- function(obj) {
 # Baer estimation function
 #-------------------
 
-BBestimators <- function(dat, t_fits = 2, kfolds = 5, tau = 12, 
-                         verbose = TRUE, cutoff = 0, eps = 1e-06, 
+BBestimators <- function(dat, t_fits = 2, kfolds = 5, 
+                         tau = 12, incr = 0.01,
+                         cutoff = 0, eps = 1e-06, 
                          pi.library = c("SL.glm", "SL.gam", "SL.lgb"), 
                          event.library = c("survSL.rfsrc", "survSL.coxph", "survSL.gam"), 
                          cens.library = c("survSL.rfsrc", "survSL.coxph", "survSL.gam"), 
                          c.library = c("SL.glm", "SL.gam", "SL.lgb"), 
                          d.library = c("SL.glm", "SL.gam", "SL.lgb"), 
-                         covnames = c("l1", "l2", "l3")) {
+                         covnames = c("l1", "l2", "l3"), 
+                         verbose = TRUE) {
   
-  nuisance <- estimate(dat = dat, t_fits = t_fits, kfolds = kfolds, tau = tau,
-                       verbose = verbose, eps = eps, 
+  nuisance <- estimate(dat = dat, t_fits = t_fits, 
+                       kfolds = kfolds, eps = eps, 
+                       tau = tau, incr = incr,
                        pi.library = pi.library, 
                        event.library = event.library, 
                        cens.library = cens.library, 
                        c.library = c.library, 
                        d.library = d.library, 
-                       covnames = covnames)
+                       covnames = covnames, 
+                       verbose = verbose)
   inputs <- inputvecs(nuisance, cutoff = cutoff, eps = eps)
   out <- outputs(inputs)
   
@@ -622,7 +626,7 @@ plotBB <- function(obj, isotonize = TRUE,
 #Westling for eta
 #-------------------
 
-TWestimators <- function(dat, t_fits = 2, kfolds = 5, 
+TWestimators <- function(dat, t_fits = 2, kfolds = 5, incr = 0.01,
                          verbose = TRUE, cutoff = 0, tau = 12, 
                          pi.library = c("SL.glm", "SL.gam", "SL.lgb"), 
                          event.library = c("survSL.rfsrc", "survSL.coxph", "survSL.gam"), 
@@ -643,7 +647,7 @@ TWestimators <- function(dat, t_fits = 2, kfolds = 5,
   } 
   
   # result holder
-  u_grid <- seq(0, tau, by = 0.01)
+  u_grid <- seq(0, tau, by = incr)
   
   fit <- CFsurvival(time = x, 
                     event = delta, 
@@ -681,7 +685,7 @@ TWestimators <- function(dat, t_fits = 2, kfolds = 5,
 #-------------------
 
 DSestimators <- function(dat, t_fits = 2, 
-                         cutoff = 0, tau = 12, 
+                         cutoff = 0, tau = 12, incr = 0.01,
                          pi.library = c("SL.glm"), 
                          covnames = c("l1", "l2", "l3")) {
   
@@ -1073,4 +1077,56 @@ IPWestimators <- function(dat, t_fits = 2,
   }
   
   return(out)
+}
+
+#################################
+#Functions to transform a dataset
+#################################
+
+#transform recurrent event dataset from survival package to be compatible with estimating functions in this file
+dat_transf <- function(dat, t_fits, 
+                       covnames, event.col,
+                       treat.col, treat.name) {
+  
+  ids <- unique(dat$id)
+  nsample <- length(ids) #number of individuals in the data
+  dat_ben <- as.data.frame(matrix(0, ncol = 4+length(t_fits)+length(covnames), 
+                                  nrow = nsample))
+  colnames(dat_ben) <- c("id", "delta", "x", "a", covnames,
+                         paste0("NE_", t_fits))
+  
+  #loop through each individual to collect data
+  for (i in 1:nsample) {
+    
+    #covariates
+    tmp <- dat[dat$id == ids[i],]
+    dat_ben[i, "id"] <- ids[i]
+    dat_ben[i,covnames] <- tmp[1,covnames]
+    
+    #exposure
+    dat_ben[i,"a"] <- ifelse(tmp[1, treat.col] %in% treat.name, 1, 0) 
+    
+    #survival
+    dat_ben[i,"x"] <- tmp$stop[nrow(tmp)] #end of observation period
+    if (tmp$status[nrow(tmp)] == 0) {
+      dat_ben[i,"delta"] <- 0
+    } else if ((tmp$status[nrow(tmp)] == 1) & (tmp$stop[nrow(tmp)] < max(t_fits))) {
+      dat_ben[i,"delta"] <- 0
+    } else {
+      dat_ben[i,"delta"] <- 1
+    }
+    
+    #number of events
+    for (j in 1:nrow(tmp)) {
+      if (tmp$status[j] == 1) {
+        dat_ben[i,paste0("NE_", t_fits[t_fits >= tmp$stop[j]])] <- dat_ben[i,paste0("NE_", t_fits[t_fits >= tmp$stop[j]])] + ifelse(tmp[j,event.col] == ".", 0, as.numeric(tmp[j,event.col]))
+      }
+    }
+  }
+  
+  # remove individual that die at time 0
+  dat_ben <- dat_ben[!((dat_ben[,"x"] == 0) & (dat_ben[,"delta"] == 1)),]
+  
+  #return dataset
+  dat_ben
 }
