@@ -1,1 +1,1 @@
-This file contains code for "Causal inference for the expected number of recurrent events in the presence of a terminal event"
+This repository contains code for "Causal inference for the expected number of recurrent events in the presence of a terminal event"
