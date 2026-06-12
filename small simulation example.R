@@ -124,7 +124,7 @@ library(ggplot2)
 library(ggpubr)
 
 #add counterfactual data
-load("simulation_data.RData")
+load("simulation_data.RData") #obtained from running the first part of file '3. visualization.R'
 res.df <- out[-c(1:nrow(out)),,drop=FALSE]
 for (i in 1:6) {
   tmp <- out %>%
