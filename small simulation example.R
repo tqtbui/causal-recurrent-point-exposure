@@ -30,6 +30,10 @@ out <- data.frame(size = double(),
                   est = double(), 
                   sd = double())
 
+#---------------------
+# Run simulations
+#---------------------
+
 # start simulation
 start <- Sys.time()
 cat("\n Simulation starts \n")
@@ -105,8 +109,121 @@ cat("Simulation finished after ", hms_span(start, end), "\n")
 # save the results
 save(out, file = "simple_simulation.RData")
 
+#---------------------
+# Summarize simulation results
+#---------------------
+
 # take a look at the results of the simple simulation
 load("simple_simulation.RData")
 View(out)
 
+#libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggpubr)
 
+#add counterfactual data
+load("simulation_data.RData")
+res.df <- out[-c(1:nrow(out)),,drop=FALSE]
+for (i in 1:6) {
+  tmp <- out %>%
+    filter(time == i) %>%
+    mutate(true = case_when(
+      estimand == "mu_1" ~ mu_1[2*i], 
+      estimand == "mu_0" ~ mu_0[2*i], 
+      estimand == "eta_1" ~ eta_1[2*i], 
+      estimand == "eta_0" ~ eta_0[2*i]
+    ))
+  res.df <- rbind.data.frame(res.df, tmp)
+}
+
+# select the columns
+res.df <- res.df %>% 
+  mutate(estimator = method) %>%
+  select(size, time, estimand, true, sim, estimator, est, sd)
+
+res.df$sd[res.df$est > 1 & res.df$estimand %in% c("eta_1", "eta_0") & res.df$estimator == "One-step AIPW"] <- NA
+res.df$est[res.df$est > 1 & res.df$estimand %in% c("eta_1", "eta_0") & res.df$estimator == "One-step AIPW"] <- NA
+
+# confidence intervals
+eps <- 1e-06
+res.df.1 <- res.df %>%
+  filter(estimand %in% c("mu_1", "mu_0")) %>%
+  mutate(estp = pmax(est, eps),
+         g_mu = log(estp),
+         g_mu_sd = sqrt(((1/estp) * sd)^2),
+         lb = exp(g_mu - 1.96*g_mu_sd),
+         ub = exp(g_mu + 1.96*g_mu_sd))
+
+res.df.2 <- res.df %>%
+  filter(estimand %in% c("eta_1", "eta_0")) %>%
+  mutate(estp = pmax(est, eps),
+         estp = pmin(estp, 1-eps),
+         g_mu = log(-log(estp)),
+         g_mu_sd = sqrt(((1/(estp*log(estp))) * sd)^2),
+         lb = exp(-exp(g_mu + 1.96*g_mu_sd)),
+         ub = exp(-exp(g_mu - 1.96*g_mu_sd)))
+
+res.df <- rbind.data.frame(res.df.1, res.df.2) %>%
+  select(size, time, estimand, sim,
+         estimator, true, est, sd, lb, ub)
+
+# bias and coverage
+res.df <- res.df %>% 
+  mutate(scaled_bias = sqrt(size)*(est-true), 
+         relative_bias = (est-true)/true*100, 
+         sq_dist = (est-true)^2,
+         coverage = as.numeric((true >= lb) & (true <= ub)))
+
+# sumarize across simulation numbers
+res.df.summarize <- res.df %>%
+  group_by(size, time, estimand, estimator) %>%
+  summarise(scaled_bias__mean = mean(scaled_bias, na.rm = TRUE),
+            relative_bias__mean = mean(relative_bias, na.rm = TRUE),
+            theoretical_sd__mean = mean(sd, na.rm = TRUE), 
+            empirical_sd__mean = sd(est, na.rm = TRUE), 
+            coverage__mean = mean(coverage, na.rm = TRUE), 
+            sd_ratio__mean = mean(sd/empirical_sd__mean, na.rm = TRUE),
+            rmsq__mean = sqrt(mean(sq_dist, na.rm = TRUE)),
+            #
+            scaled_bias__sd = sd(scaled_bias, na.rm = TRUE), 
+            relative_bias__sd = sd(relative_bias, na.rm = TRUE),
+            theoretical_sd__sd = sd(sd, na.rm = TRUE), 
+            sd_ratio__sd = sd(sd/empirical_sd__mean, na.rm = TRUE), 
+            rmsq__sd = sqrt(sd(sq_dist, na.rm = TRUE))) %>%
+  mutate(coverage__sd = sqrt(coverage__mean*(1-coverage__mean)/size), 
+         empirical_sd__sd = theoretical_sd__sd)
+names(res.df.summarize)
+
+# average over time points
+res.df.summarize.time <- res.df.summarize %>%
+  group_by(size, estimand, estimator) %>%
+  summarise(scaled_bias__mean = mean(scaled_bias__mean), 
+            relative_bias__mean = mean(relative_bias__mean), 
+            theoretical_sd__mean = mean(theoretical_sd__mean), 
+            empirical_sd__mean = mean(empirical_sd__mean), 
+            coverage__mean = mean(coverage__mean), 
+            sd_ratio__mean = mean(sd_ratio__mean),
+            rmsq__mean = mean(rmsq__mean),
+            #
+            scaled_bias__sd = mean(scaled_bias__sd), 
+            relative_bias__sd = mean(relative_bias__sd), 
+            theoretical_sd__sd = mean(theoretical_sd__sd), 
+            empirical_sd__sd = mean(empirical_sd__sd), 
+            coverage__sd = mean(coverage__sd), 
+            sd_ratio__sd = mean(sd_ratio__sd), 
+            rmsq__sd = mean(rmsq__sd))
+
+res.df.summarize.long <- res.df.summarize.time %>%
+  select(size, estimand, estimator, 
+         scaled_bias__mean, relative_bias__mean, empirical_sd__mean, theoretical_sd__mean, coverage__mean, sd_ratio__mean, rmsq__mean,
+         scaled_bias__sd, relative_bias__sd, empirical_sd__sd, theoretical_sd__sd, coverage__sd, sd_ratio__sd, rmsq__sd) %>%
+  pivot_longer(cols = scaled_bias__mean:rmsq__sd, 
+               names_to = c("summary", "mean_or_sd"), 
+               names_sep = c("__")) %>%
+  pivot_wider(names_from = mean_or_sd, 
+              values_from = value)
+
+#View the results
+View(res.df.summarize.long)
