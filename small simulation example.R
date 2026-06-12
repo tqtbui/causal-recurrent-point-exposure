@@ -19,7 +19,7 @@ c.zCoef <- c(-2, 0.5, 0, 0, 0)
 nsamples <- 500 # sample size
 t_fits <- seq(0.5, 6, by = 0.5) # time points
 tau <- 12 # end of study
-nsim <- 1 # number of simulations 
+nsim <- 10 # number of simulations 
 
 # output holder
 out <- data.frame(size = double(),
@@ -41,10 +41,10 @@ for (i in 1:nsim) {
                                    c("c", "d", "x", "delta",
                                      "a", "l1", "l2", "l3", paste0("NE_", t_fits))))
   
-  for (i in 1:nsamples) {
+  for (k in 1:nsamples) {
     one <- gen_instance(end = tau, d.zCoef = d.zCoef, e.zCoef = e.zCoef, 
                         c.zCoef = c.zCoef, p.zCoef = p.zCoef)
-    dat.now[i,] <- c(one$c, one$d, one$x, one$delta, 
+    dat.now[k,] <- c(one$c, one$d, one$x, one$delta, 
                      one$a, one$l1, one$l2, one$l3,  
                      n_func(t = t_fits, data = one$e))
   }
@@ -75,8 +75,7 @@ for (i in 1:nsim) {
   
   # Schaubel 2010
   cat("\n Calculating Schaubel estimators \n")
-  tmp <- try(DSestimators(dat.now, t_fits = 1:6, 
-                          pi.library = c("SL.glm")), 
+  tmp <- try(DSestimators(dat.now, t_fits = 1:6), 
              silent = FALSE)
   if (!("try-error" %in% class(tmp))) {
     tmp$sim <- i
@@ -96,6 +95,8 @@ for (i in 1:nsim) {
     out <- rbind.data.frame(out, tmp)
   }
   
+  cat("Simulation:", i, "/", nsim, "\n")
+  
 }
 # Finish simulation
 end <- Sys.time()
@@ -104,6 +105,8 @@ cat("Simulation finished after ", hms_span(start, end), "\n")
 # save the results
 save(out, file = "simple_simulation.RData")
 
-
+# take a look at the results of the simple simulation
+load("simple_simulation.RData")
+View(out)
 
 

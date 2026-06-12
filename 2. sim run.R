@@ -120,8 +120,7 @@ for (i in 1:length(nsamples)) {
   
   # Schaubel 2010
   cat("\n Calculating Schaubel estimators \n")
-  tmp <- try(DSestimators(dat.now[1:nsamples[i],], t_fits = t_fits, 
-                          pi.library = c("SL.glm")), 
+  tmp <- try(DSestimators(dat.now[1:nsamples[i],], t_fits = t_fits), 
              silent = FALSE)
   if (!("try-error" %in% class(tmp))) {
     out <- rbind.data.frame(out, tmp)

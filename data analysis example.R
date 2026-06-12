@@ -37,10 +37,15 @@ fit <- BBestimators(dat_ben, t_fits = 1:60, tau = 64, kfolds = 5,
                     d.library = c("SL.glm"), 
                     covnames = c("number", "size"))
 
+# #use the Schaubel and Zhang (2010) method for analysis
 # fit <- DSestimators(dat = dat_ben, t_fits = 1:60, tau = 64, 
 #                     covnames = c("number", "size"))
+
+# #use the IPW method for analysis
 # fit <- IPWestimators(dat = dat_ben, t_fits = 1:60, tau = 64, 
 #                      covnames = c("number", "size"))
+
+# #use the Westling et al (2023) method for analysis
 # fit <- TWestimators(dat = dat_ben, t_fits = 1:60, tau = 64, 
 #                     covnames = c("number", "size"), 
 #                     event.library = c("survSL.km", "survSL.coxph"), 
